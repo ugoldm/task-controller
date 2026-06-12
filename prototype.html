@@ -65,7 +65,9 @@
   .badge-carry{background:var(--warn-soft);color:var(--warn)}
   .badge-note{background:var(--bg);color:var(--muted)}
   .badge-due{background:#fde8e8;color:var(--danger)}
-  .badge-stream{background:var(--bg);color:var(--muted)}
+  .badge-stream{background:var(--accent-soft);color:var(--accent)}
+  .badge-off{background:var(--bg);color:var(--muted)}
+  .today-block{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
 
   .quick-add{display:flex;gap:8px;margin-top:10px}
   .quick-add input{flex:1;padding:11px 14px;border:1px dashed #cbd0d8;border-radius:var(--radius);background:var(--surface)}
@@ -383,14 +385,16 @@ function streamTaskRow(t){
     <div class="task-body" onclick="openTask(${t.id})">
       <div class="task-title">${esc(t.title)}</div>
       <div class="task-meta">
-        ${t.today?'<span class="badge badge-stream">в плане на сегодня</span>':''}
         ${t.carry>0?`<span class="badge badge-carry">↻ ×${t.carry}</span>`:''}
         ${t.notes?'<span class="badge badge-note">✎ заметка</span>':''}
       </div>
     </div>
-    ${t.done ? '' : (t.today
-      ? `<button class="btn btn-sm" onclick="removeFromToday(${t.id})">↩ Убрать из сегодня</button>`
-      : `<button class="btn btn-sm" onclick="toToday(${t.id})">→ В сегодня</button>`)}
+    <div class="today-block">
+      <span class="badge ${t.today?'badge-stream':'badge-off'}">${t.today?'в плане на сегодня':'не в плане'}</span>
+      ${t.done ? '' : (t.today
+        ? `<button class="btn btn-sm" onclick="removeFromToday(${t.id})">↩ Убрать из сегодня</button>`
+        : `<button class="btn btn-sm" onclick="toToday(${t.id})">→ В сегодня</button>`)}
+    </div>
     <div class="reorder">
       <button onclick="moveTask(${t.id},-1)">▲</button>
       <button onclick="moveTask(${t.id},1)">▼</button>
