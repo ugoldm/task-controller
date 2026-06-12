@@ -129,6 +129,8 @@
   .swatch{width:30px;height:30px;border-radius:8px;border:2px solid transparent;box-shadow:0 0 0 1px var(--line)}
   .swatch.sel{border-color:#fff;box-shadow:0 0 0 2px var(--text)}
   .add-stream{margin-top:4px}
+  .btn-link{background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;padding:8px 2px;margin-top:2px}
+  .btn-link:hover{color:var(--accent)}
   .stream-edit{margin-left:auto;font-size:13px}
   .reorder{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
   .reorder button{width:22px;height:17px;border-radius:5px;color:var(--muted);font-size:9px;line-height:1}
@@ -256,16 +258,25 @@ let tasks = [
   {id:3, title:'Ревью PRD по сплит-платежам от Артёма', stream:'s3', done:false, today:true,
    carry:1, deadline:'', notes:'Артём прислал v2. Проверить раздел про лимиты и комиссии.'},
   {id:4, title:'Ответить продуктовому совету по приоритизации', stream:'s1', done:true, today:true,
-   carry:0, deadline:'', notes:''},
+   carry:0, deadline:'', notes:'', closedAt:5},
   {id:5, title:'Накидать тезисы для встречи с руководителем', stream:'s1', done:false, today:false,
    carry:0, deadline:'', notes:'1:1 в среду. Поднять вопрос ресурсов на стратегический стрим.'},
   {id:6, title:'Проверить метрики активации после релиза', stream:'s2', done:false, today:false,
    carry:0, deadline:'', notes:''},
   {id:7, title:'Уточнить у легала требования по хранению токенов', stream:'s3', done:false, today:false,
    carry:3, deadline:'', notes:'Висит давно — каждый раз не доходят руки. Возможно, делегировать.'},
+  {id:8, title:'Свести цифры по оттоку с аналитикой', stream:'s1', done:true, today:false,
+   carry:0, deadline:'', notes:'', closedAt:4},
+  {id:9, title:'Согласовать roadmap H2 с дизайн-лидом', stream:'s1', done:true, today:false,
+   carry:0, deadline:'', notes:'', closedAt:3},
+  {id:10, title:'Подготовить апдейт по стратегии для борда', stream:'s1', done:true, today:false,
+   carry:0, deadline:'', notes:'', closedAt:2},
+  {id:11, title:'Разослать резюме встречи по retention', stream:'s1', done:true, today:false,
+   carry:0, deadline:'', notes:'', closedAt:1},
 ];
-let nextId = 8;
+let nextId = 12, closeSeq = 5;
 let view = 'today', openTaskId = null, reviewState = {}, addMode = 'choose';
+let expandedDone = {};
 
 const streamById = id => streams.find(s=>s.id===id);
 const esc = s => (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -342,30 +353,17 @@ function renderStreams(){
         ${esc(s.name)}
         <button class="iconbtn stream-edit" onclick="openStream('${s.id}')">✎</button>
       </div>`;
+    const open = list.filter(t=>!t.done);
+    const done = list.filter(t=>t.done).sort((a,b)=>(b.closedAt||0)-(a.closedAt||0));
     if(!list.length) html += `<div class="empty">Пока пусто</div>`;
-    list.forEach(t=>{
-      html += `<div class="task ${t.done?'done':''}" draggable="true"
-        ondragstart="dragStart(event,${t.id})" ondragend="dragEnd(event)"
-        ondragover="dragOver(event,${t.id})" ondragleave="dragLeave(event)"
-        ondrop="dragDrop(event,${t.id})">
-        <div class="check" onclick="toggleDone(${t.id})">
-          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <div class="task-body" onclick="openTask(${t.id})">
-          <div class="task-title">${esc(t.title)}</div>
-          <div class="task-meta">
-            ${t.today?'<span class="badge badge-stream">в плане на сегодня</span>':''}
-            ${t.carry>0?`<span class="badge badge-carry">↻ ×${t.carry}</span>`:''}
-            ${t.notes?'<span class="badge badge-note">✎ заметка</span>':''}
-          </div>
-        </div>
-        ${!t.today&&!t.done?`<button class="btn btn-sm" onclick="toToday(${t.id})">→ В сегодня</button>`:''}
-        <div class="reorder">
-          <button onclick="moveTask(${t.id},-1)">▲</button>
-          <button onclick="moveTask(${t.id},1)">▼</button>
-        </div>
-      </div>`;
-    });
+    open.forEach(t=>{ html += streamTaskRow(t); });
+    const expanded = !!expandedDone[s.id];
+    const shownDone = expanded ? done : done.slice(0,2);
+    shownDone.forEach(t=>{ html += streamTaskRow(t); });
+    if(done.length>2){
+      html += `<button class="btn-link toggle-done" onclick="toggleExpandDone('${s.id}')">${
+        expanded ? '▴ Свернуть выполненные' : `▾ Показать ещё ${done.length-2} выполненных`}</button>`;
+    }
     html += `<div class="quick-add">
         <input placeholder="+ Задача в «${esc(s.name)}»" onkeydown="if(event.key==='Enter')quickAdd('${s.id}',this)">
       </div></div>`;
@@ -374,8 +372,39 @@ function renderStreams(){
   c.innerHTML = html;
 }
 
+function streamTaskRow(t){
+  return `<div class="task ${t.done?'done':''}" draggable="true"
+    ondragstart="dragStart(event,${t.id})" ondragend="dragEnd(event)"
+    ondragover="dragOver(event,${t.id})" ondragleave="dragLeave(event)"
+    ondrop="dragDrop(event,${t.id})">
+    <div class="check" onclick="toggleDone(${t.id})">
+      <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="task-body" onclick="openTask(${t.id})">
+      <div class="task-title">${esc(t.title)}</div>
+      <div class="task-meta">
+        ${t.today?'<span class="badge badge-stream">в плане на сегодня</span>':''}
+        ${t.carry>0?`<span class="badge badge-carry">↻ ×${t.carry}</span>`:''}
+        ${t.notes?'<span class="badge badge-note">✎ заметка</span>':''}
+      </div>
+    </div>
+    ${t.done ? '' : (t.today
+      ? `<button class="btn btn-sm" onclick="removeFromToday(${t.id})">↩ Убрать из сегодня</button>`
+      : `<button class="btn btn-sm" onclick="toToday(${t.id})">→ В сегодня</button>`)}
+    <div class="reorder">
+      <button onclick="moveTask(${t.id},-1)">▲</button>
+      <button onclick="moveTask(${t.id},1)">▼</button>
+    </div>
+  </div>`;
+}
+
+function toggleExpandDone(streamId){
+  expandedDone[streamId] = !expandedDone[streamId];
+  render();
+}
+
 /* ---------- task actions ---------- */
-function toggleDone(id){ const t=tasks.find(x=>x.id===id); t.done=!t.done; render(); if(openTaskId===id) renderDrawer(); }
+function toggleDone(id){ const t=tasks.find(x=>x.id===id); t.done=!t.done; if(t.done) t.closedAt=++closeSeq; render(); if(openTaskId===id) renderDrawer(); }
 function toToday(id){ tasks.find(x=>x.id===id).today=true; render(); }
 function removeFromToday(id){ tasks.find(x=>x.id===id).today=false; render(); if(openTaskId===id) renderDrawer(); }
 function quickAdd(streamId, el){
