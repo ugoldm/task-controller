@@ -1,0 +1,19 @@
+{
+  "name": "task-controller",
+  "version": "0.1.0",
+  "description": "Личный трекер задач продакт-менеджера (стримы, план на сегодня, заметки, утреннее ревью, разбор текста через Claude).",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.69.0",
+    "better-sqlite3": "^11.3.0",
+    "cookie-session": "^2.1.0",
+    "express": "^4.21.0"
+  }
+}

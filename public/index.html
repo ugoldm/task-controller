@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task Controller</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --surface:#ffffff; --line:#e6e8ec; --text:#1d2129;
+    --muted:#8a8f99; --accent:#4f46e5; --accent-soft:#eef0ff;
+    --done:#9aa0ab; --warn:#d97706; --warn-soft:#fef3e2; --danger:#dc2626;
+    --radius:12px; --shadow:0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.45}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,textarea{font-family:inherit;font-size:inherit}
+
+  .app{display:flex;min-height:100vh}
+  .sidebar{width:220px;background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;flex-shrink:0}
+  .logo{font-weight:700;font-size:17px;padding:6px 10px 18px;display:flex;gap:8px;align-items:center}
+  .logo .dot{width:10px;height:10px;border-radius:3px;background:var(--accent)}
+  .nav-item{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:8px;color:var(--muted);font-weight:500;text-align:left}
+  .nav-item.active{background:var(--accent-soft);color:var(--accent)}
+  .nav-item:hover:not(.active){background:var(--bg)}
+  .nav-sep{margin:14px 10px 6px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .topbar{display:flex;align-items:center;gap:12px;padding:16px 28px;border-bottom:1px solid var(--line);background:var(--surface)}
+  .topbar h1{font-size:18px;font-weight:650}
+  .topbar .sub{color:var(--muted);font-size:13px}
+  .spacer{flex:1}
+  .content{padding:24px 28px 100px;overflow-y:auto;max-width:840px;width:100%}
+
+  .btn{padding:8px 14px;border-radius:8px;font-weight:600;font-size:14px;background:var(--bg);border:1px solid var(--line)}
+  .btn:hover{background:#ececf0}
+  .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn-primary:hover{background:#4338ca}
+  .btn-sm{padding:5px 10px;font-size:13px}
+
+  .stream{margin-bottom:18px}
+  .stream-head{display:flex;align-items:center;gap:9px;padding:6px 2px;font-weight:650}
+  .stream-head .cdot{width:9px;height:9px;border-radius:50%}
+  .stream-head .tag{font-size:11px;font-weight:600;color:var(--muted);background:var(--bg);padding:2px 7px;border-radius:6px}
+  .stream-count{color:var(--muted);font-weight:500;font-size:13px}
+
+  .task{display:flex;align-items:flex-start;gap:11px;background:var(--surface);border:1px solid var(--line);
+        border-radius:var(--radius);padding:12px 14px;margin-top:8px;cursor:pointer;transition:.12s}
+  .task:hover{border-color:#d3d6dd;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+  .task.dragging{opacity:.4}
+  .task.drag-over{border-color:var(--accent);background:var(--accent-soft)}
+  .check{width:20px;height:20px;border:2px solid #cbd0d8;border-radius:6px;flex-shrink:0;margin-top:1px;
+         display:flex;align-items:center;justify-content:center;transition:.12s}
+  .task.done .check{background:var(--done);border-color:var(--done)}
+  .check svg{opacity:0}
+  .task.done .check svg{opacity:1}
+  .task-body{flex:1;min-width:0}
+  .task-title{font-weight:500}
+  .task.done .task-title{color:var(--done);text-decoration:line-through}
+  .task-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+  .badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;display:inline-flex;gap:4px;align-items:center}
+  .badge-carry{background:var(--warn-soft);color:var(--warn)}
+  .badge-note{background:var(--bg);color:var(--muted)}
+  .badge-due{background:#fde8e8;color:var(--danger)}
+  .badge-stream{background:var(--accent-soft);color:var(--accent)}
+  .badge-off{background:var(--bg);color:var(--muted)}
+  .today-block{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+
+  .quick-add{display:flex;gap:8px;margin-top:10px}
+  .quick-add input{flex:1;padding:11px 14px;border:1px dashed #cbd0d8;border-radius:var(--radius);background:var(--surface)}
+  .quick-add input:focus{outline:none;border-color:var(--accent);border-style:solid}
+
+  .empty{color:var(--muted);font-size:14px;padding:8px 2px}
+  .hint{background:var(--accent-soft);color:#3730a3;border-radius:var(--radius);padding:12px 14px;font-size:13px;margin-bottom:18px}
+
+  .overlay{position:fixed;inset:0;background:rgba(20,22,28,.42);display:none;z-index:40}
+  .overlay.show{display:block}
+  .drawer{position:fixed;top:0;right:0;height:100vh;width:420px;max-width:92vw;background:var(--surface);
+          box-shadow:var(--shadow);z-index:50;transform:translateX(100%);transition:.22s;display:flex;flex-direction:column}
+  .drawer.show{transform:translateX(0)}
+  .drawer-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .drawer-body{padding:20px;overflow-y:auto;flex:1}
+  .field{margin-bottom:18px}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+  .field input,.field textarea,.field select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+  .field textarea{min-height:130px;resize:vertical}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+  .iconbtn{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+  .iconbtn:hover{background:var(--bg)}
+
+  .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);z-index:50;
+         width:560px;max-width:94vw;max-height:88vh;background:var(--surface);border-radius:16px;
+         box-shadow:var(--shadow);display:none;flex-direction:column;opacity:0;transition:.16s}
+  .modal.show{display:flex;opacity:1;transform:translate(-50%,-50%) scale(1)}
+  .modal-head{padding:18px 22px;border-bottom:1px solid var(--line)}
+  .modal-head h2{font-size:17px}
+  .modal-head p{color:var(--muted);font-size:13px;margin-top:3px}
+  .modal-body{padding:18px 22px;overflow-y:auto}
+  .modal-foot{padding:14px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+
+  .rev-item{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+  .rev-item .rt{font-weight:500;margin-bottom:8px}
+  .rev-actions{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{padding:5px 11px;border-radius:7px;font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--bg)}
+  .chip.sel-today{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .chip.sel-keep{background:#e8eaed;border-color:#d3d6dd}
+  .chip.sel-done{background:#dcfce7;color:#15803d;border-color:#bbf7d0}
+  .chip.sel-del{background:#fde8e8;color:var(--danger);border-color:#f5c6c6}
+  .ai-note{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:10px 13px;font-size:13px;margin:4px 0 14px;display:flex;gap:8px}
+
+  .ai-parse{background:var(--accent-soft);border-radius:10px;padding:12px 14px;margin-top:12px;font-size:13px}
+  .ai-parse .lbl{font-weight:700;color:var(--accent);font-size:11px;text-transform:uppercase;letter-spacing:.05em;display:flex;gap:6px;align-items:center}
+
+  .add-option{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;border:1px solid var(--line);
+    border-radius:12px;padding:14px 16px;margin-bottom:10px;background:var(--surface)}
+  .add-option:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .add-option .ico{font-size:22px;line-height:1}
+  .add-option .ttl{font-weight:650;display:block}
+  .add-option .desc{color:var(--muted);font-size:13px;margin-top:2px;display:block}
+  .back-link{color:var(--accent);font-weight:600;font-size:13px;margin-bottom:14px;display:inline-block}
+  .det-item{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;margin-bottom:8px;background:var(--surface)}
+  .swatches{display:flex;gap:8px;flex-wrap:wrap}
+  .swatch{width:30px;height:30px;border-radius:8px;border:2px solid transparent;box-shadow:0 0 0 1px var(--line)}
+  .swatch.sel{border-color:#fff;box-shadow:0 0 0 2px var(--text)}
+  .add-stream{margin-top:4px}
+  .btn-link{background:none;border:none;color:var(--muted);font-size:13px;font-weight:600;padding:8px 2px;margin-top:2px}
+  .btn-link:hover{color:var(--accent)}
+  .today-block .badge{white-space:nowrap}
+  .stream-edit{margin-left:auto;font-size:13px}
+  .reorder{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+  .reorder button{width:22px;height:17px;border-radius:5px;color:var(--muted);font-size:9px;line-height:1}
+  .reorder button:hover{background:var(--bg);color:var(--text)}
+  .remove-today{flex-shrink:0;font-size:15px;align-self:center;color:var(--muted)}
+  .remove-today:hover{background:var(--warn-soft);color:var(--warn)}
+
+  .mobilenav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);
+             border-top:1px solid var(--line);z-index:30}
+  .mobilenav .nav-item{flex-direction:column;gap:3px;font-size:11px;padding:8px 0;border-radius:0;justify-content:center}
+  .fab{position:fixed;right:18px;bottom:78px;width:54px;height:54px;border-radius:50%;background:var(--accent);
+       color:#fff;font-size:26px;box-shadow:var(--shadow);z-index:30;display:none;align-items:center;justify-content:center}
+
+  /* login */
+  .login{position:fixed;inset:0;background:var(--bg);z-index:60;display:none;align-items:center;justify-content:center}
+  .login.show{display:flex}
+  .login-card{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+    padding:28px;width:340px;max-width:92vw}
+  .login-card h2{font-size:18px;margin-bottom:4px}
+  .login-card p{color:var(--muted);font-size:13px;margin-bottom:18px}
+  .login-card input{width:100%;padding:11px 13px;border:1px solid var(--line);border-radius:9px;background:var(--bg);margin-bottom:12px}
+  .login-card input:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+  .login-err{color:var(--danger);font-size:13px;margin-bottom:10px;display:none}
+  .login-err.show{display:block}
+
+  @media(max-width:760px){
+    .sidebar{display:none}
+    .topbar{padding:14px 16px}
+    .content{padding:16px 16px 110px}
+    .mobilenav{display:flex}
+    .mobilenav .nav-item{flex:1}
+    .fab{display:flex}
+    .drawer{width:100vw}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo"><span class="dot"></span> Task Controller</div>
+    <button class="nav-item active" data-view="today" onclick="setView('today')">📋 Сегодня</button>
+    <button class="nav-item" data-view="streams" onclick="setView('streams')">🗂 Стримы</button>
+    <div class="nav-sep">Действия</div>
+    <button class="nav-item" onclick="openReview()">🌅 Утреннее ревью</button>
+    <button class="nav-item" onclick="openAdd()">➕ Новая задача</button>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="viewTitle">Сегодня</h1>
+        <div class="sub" id="viewSub"></div>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn btn-primary btn-sm" onclick="openReview()">🌅 Ревью дня</button>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<nav class="mobilenav">
+  <button class="nav-item active" data-view="today" onclick="setView('today')">📋<span>Сегодня</span></button>
+  <button class="nav-item" data-view="streams" onclick="setView('streams')">🗂<span>Стримы</span></button>
+</nav>
+<button class="fab" onclick="openAdd()">+</button>
+
+<div class="overlay" id="overlay" onclick="closeAll()"></div>
+
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <strong style="flex:1">Карточка задачи</strong>
+    <button class="iconbtn" onclick="closeAll()">✕</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<div class="modal" id="reviewModal">
+  <div class="modal-head">
+    <h2>🌅 Утреннее ревью</h2>
+    <p>Разберите незавершённое со вчера и соберите реалистичный план на сегодня</p>
+  </div>
+  <div class="modal-body" id="reviewBody"></div>
+  <div class="modal-foot">
+    <button class="btn" onclick="closeAll()">Отмена</button>
+    <button class="btn btn-primary" onclick="applyReview()">Собрать план дня</button>
+  </div>
+</div>
+
+<div class="modal" id="addModal">
+  <div class="modal-head">
+    <h2 id="addTitle">Новая задача</h2>
+    <p id="addSub"></p>
+  </div>
+  <div class="modal-body" id="addBody"></div>
+  <div class="modal-foot" id="addFoot"></div>
+</div>
+
+<div class="modal" id="streamModal">
+  <div class="modal-head">
+    <h2 id="strModalTitle">Новый стрим</h2>
+    <p>Стрим — это проект или направление, в которое группируются задачи</p>
+  </div>
+  <div class="modal-body">
+    <div class="field">
+      <label>Название</label>
+      <input id="strName" placeholder="Напр.: Стратегия продукта">
+    </div>
+    <div class="field" style="margin-bottom:0">
+      <label>Цвет</label>
+      <div class="swatches" id="strSwatches"></div>
+    </div>
+  </div>
+  <div class="modal-foot" id="strModalFoot"></div>
+</div>
+
+<div class="login" id="login">
+  <div class="login-card">
+    <h2>Task Controller</h2>
+    <p>Введите пароль для входа</p>
+    <div class="login-err" id="loginErr">Неверный пароль</div>
+    <input type="password" id="loginPass" placeholder="Пароль" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Войти</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
