@@ -10,8 +10,13 @@ COPY package.json ./
 RUN npm install --omit=dev
 COPY . .
 
+# Запуск под непривилегированным пользователем node (есть в образе).
+# Каталог data принадлежит node, чтобы запись в БД работала из-под него.
+RUN mkdir -p /app/data && chown -R node:node /app
+USER node
+
 # Persist the SQLite database outside the image.
 VOLUME ["/app/data"]
-ENV PORT=3000
+ENV PORT=3000 NODE_ENV=production
 EXPOSE 3000
 CMD ["node", "server.js"]

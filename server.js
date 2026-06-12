@@ -1,7 +1,22 @@
 import express from 'express';
 import cookieSession from 'cookie-session';
+import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { readFileSync, existsSync } from 'node:fs';
+
+// Load .env (no external dependency). Existing process env vars win.
+function loadEnv(path = '.env') {
+  if (!existsSync(path)) return;
+  for (const line of readFileSync(path, 'utf8').split('\n')) {
+    const m = line.match(/^\s*([\w.-]+)\s*=\s*(.*?)\s*$/);
+    if (!m) continue; // skips blank lines and # comments
+    let val = m[2];
+    if (/^".*"$/.test(val) || /^'.*'$/.test(val)) val = val.slice(1, -1);
+    if (!(m[1] in process.env)) process.env[m[1]] = val;
+  }
+}
+loadEnv();
 import {
   db,
   rolloverIfNewDay,
@@ -13,12 +28,23 @@ import { aiEnabled, parseTasksFromText } from './src/ai.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
 const APP_PASSWORD = process.env.APP_PASSWORD || '';
+const isProd = process.env.NODE_ENV === 'production';
 
-if (!APP_PASSWORD) {
-  console.warn('⚠️  APP_PASSWORD не задан — вход открыт для всех. Задайте APP_PASSWORD в .env.');
+// В проде секреты обязательны — иначе сессию можно подделать / вход открыт.
+if (isProd) {
+  const missing = [];
+  if (!APP_PASSWORD) missing.push('APP_PASSWORD');
+  if (!process.env.SESSION_SECRET) missing.push('SESSION_SECRET');
+  if (missing.length) {
+    console.error(`❌ В production обязательны переменные: ${missing.join(', ')}. Запуск прерван.`);
+    process.exit(1);
+  }
+} else if (!APP_PASSWORD) {
+  console.warn('⚠️  APP_PASSWORD не задан — вход открыт (ок для localhost, недопустимо в проде).');
 }
 
 const app = express();
+app.set('trust proxy', 1); // за Caddy: доверяем X-Forwarded-* (нужно для secure-cookie и req.ip)
 app.use(express.json({ limit: '256kb' }));
 app.use(
   cookieSession({
@@ -27,8 +53,39 @@ app.use(
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 дней
     httpOnly: true,
     sameSite: 'lax',
+    secure: isProd, // cookie только по HTTPS в проде; локально по http остаётся рабочей
   })
 );
+
+// Сравнение пароля за постоянное время (через SHA-256, без утечки длины).
+function passwordMatches(input) {
+  const a = crypto.createHash('sha256').update(String(input)).digest();
+  const b = crypto.createHash('sha256').update(APP_PASSWORD).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+
+// Простой in-memory rate-limit на вход: защита от перебора пароля.
+const LOGIN_MAX = 5; // попыток
+const LOGIN_WINDOW = 15 * 60 * 1000; // окно/блокировка — 15 минут
+const loginAttempts = new Map(); // ip -> { count, first, blockedUntil }
+
+function loginThrottle(req, res, next) {
+  const rec = loginAttempts.get(req.ip);
+  if (rec?.blockedUntil && Date.now() < rec.blockedUntil) {
+    const retryAfter = Math.ceil((rec.blockedUntil - Date.now()) / 1000);
+    res.set('Retry-After', String(retryAfter));
+    return res.status(429).json({ error: 'too_many_attempts', retryAfter });
+  }
+  next();
+}
+function registerLoginFailure(ip) {
+  const now = Date.now();
+  let rec = loginAttempts.get(ip);
+  if (!rec || now - rec.first > LOGIN_WINDOW) rec = { count: 0, first: now, blockedUntil: 0 };
+  rec.count += 1;
+  if (rec.count >= LOGIN_MAX) rec.blockedUntil = now + LOGIN_WINDOW;
+  loginAttempts.set(ip, rec);
+}
 
 // --- auth ---
 function requireAuth(req, res, next) {
@@ -39,12 +96,14 @@ function requireAuth(req, res, next) {
 app.get('/api/me', (req, res) => {
   res.json({ authed: !APP_PASSWORD || !!req.session?.authed, authRequired: !!APP_PASSWORD });
 });
-app.post('/api/login', (req, res) => {
+app.post('/api/login', loginThrottle, (req, res) => {
   if (!APP_PASSWORD) return res.json({ ok: true });
-  if (req.body?.password === APP_PASSWORD) {
+  if (passwordMatches(req.body?.password)) {
+    loginAttempts.delete(req.ip);
     req.session.authed = true;
     return res.json({ ok: true });
   }
+  registerLoginFailure(req.ip);
   res.status(401).json({ error: 'wrong_password' });
 });
 app.post('/api/logout', (req, res) => {

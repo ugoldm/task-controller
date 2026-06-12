@@ -1,0 +1,8 @@
+# Caddy автоматически получает и продлевает TLS-сертификат Let's Encrypt для домена.
+{
+	email {$CADDY_EMAIL}
+}
+
+{$DOMAIN} {
+	reverse_proxy app:3000
+}

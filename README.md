@@ -18,6 +18,19 @@ npm start                   # http://localhost:3000
 
 База данных создаётся автоматически в `data/task-controller.sqlite` (каталог `data/` в `.gitignore`).
 
+## Просмотр базы данных
+
+```bash
+npm run db:dump            # вывести таблицы в консоль (только чтение, безопасно при работающем app)
+npm run db:dump tasks      # только задачи (с именем стрима)
+npm run db                 # интерактивный sqlite3 (нужен установленный sqlite3 CLI)
+```
+
+В Docker — то же через контейнер:
+```bash
+docker compose exec app node scripts/db-dump.js
+```
+
 ## Переменные окружения
 
 | Переменная | Назначение |
@@ -29,19 +42,24 @@ npm start                   # http://localhost:3000
 | `ANTHROPIC_MODEL` | Модель (по умолчанию `claude-opus-4-8`). |
 | `DB_PATH` | Путь к файлу БД (по умолчанию `data/task-controller.sqlite`). |
 
-## Деплой через Docker
+## Деплой на VPS (Docker + Caddy + HTTPS)
+
+Пошаговая инструкция — в **[DEPLOY.md](DEPLOY.md)**. Коротко (на сервере, в папке проекта):
 
 ```bash
-docker build -t task-controller .
-docker run -d -p 3000:3000 \
-  -e APP_PASSWORD=... -e SESSION_SECRET=... \
-  -e ANTHROPIC_API_KEY=...  \
-  -v $(pwd)/data:/app/data \
-  task-controller
+cp .env.example .env   # заполнить APP_PASSWORD, SESSION_SECRET, DOMAIN, CADDY_EMAIL
+docker compose up -d --build
 ```
 
-Том `data/` хранит базу вне контейнера. Для доступа извне поставьте перед сервисом HTTPS-прокси
-(nginx/Caddy) — cookie-сессия рассчитана на работу за TLS.
+`docker-compose.yml` поднимает само приложение и Caddy, который автоматически получает
+и продлевает TLS-сертификат Let's Encrypt для домена из `DOMAIN`. База в `./data` переживает
+пересборки. Обновление: `git pull && docker compose up -d --build`.
+
+Только образ приложения, без прокси (контейнер работает под non-root, БД — в именованном томе):
+```bash
+docker build -t task-controller .
+docker run -d -p 3000:3000 --env-file .env -v tc_data:/app/data task-controller
+```
 
 ## Поведение
 

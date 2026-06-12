@@ -8,7 +8,9 @@
   },
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "db": "sqlite3 \"${DB_PATH:-data/task-controller.sqlite}\"",
+    "db:dump": "node scripts/db-dump.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.69.0",
