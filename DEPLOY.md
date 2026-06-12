@@ -97,18 +97,40 @@ docker compose up -d --build
 
 ## Бэкап базы
 
-База лежит в Docker-томе `appdata`. Скопировать файл наружу (можно по cron):
-```bash
-mkdir -p ~/backups
-docker compose cp app:/app/data/task-controller.sqlite ~/backups/tc-$(date +%F).sqlite
-```
+### Ручной бэкап
 
-Восстановление — обратной командой при остановленном `app`:
+Скрипт снимает консистентную копию (онлайн-бэкап SQLite, безопасно при работающем app),
+кладёт её на хост в `~/task-controller-backups/` и хранит последние 14 копий:
 ```bash
+cd ~/task-controller
+./scripts/backup.sh
+```
+Настройки через переменные: `BACKUP_DIR=/root/backups KEEP=30 ./scripts/backup.sh`.
+
+### Автобэкап по cron (рекомендуется)
+
+Ежедневно в 04:00. Открой crontab:
+```bash
+crontab -e
+```
+и добавь строку (подставь свой путь к проекту):
+```cron
+0 4 * * * cd /root/task-controller && ./scripts/backup.sh >> /root/task-controller-backups/backup.log 2>&1
+```
+Проверить, что задание сохранилось: `crontab -l`. Лог последнего запуска — в `backup.log`.
+
+### Восстановление
+
+```bash
+cd ~/task-controller
 docker compose stop app
-docker compose cp ~/backups/tc-2026-06-12.sqlite app:/app/data/task-controller.sqlite
+docker compose cp ~/task-controller-backups/tc-2026-06-12_040000.sqlite app:/app/data/task-controller.sqlite
 docker compose start app
 ```
+(имя файла возьми из `ls ~/task-controller-backups/`).
+
+> Совет: иногда скачивай свежий бэкап с сервера на свой компьютер
+> (`scp root@IP:~/task-controller-backups/tc-*.sqlite .`) — на случай отказа всего VPS.
 
 ## Частые проблемы
 
