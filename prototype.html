@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Task Controller — прототип</title>
+<style>
+  :root{
+    --bg:#f4f5f7; --surface:#ffffff; --line:#e6e8ec; --text:#1d2129;
+    --muted:#8a8f99; --accent:#4f46e5; --accent-soft:#eef0ff;
+    --done:#9aa0ab; --warn:#d97706; --warn-soft:#fef3e2; --danger:#dc2626;
+    --radius:12px; --shadow:0 1px 3px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:15px;line-height:1.45}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  input,textarea{font-family:inherit;font-size:inherit}
+
+  /* layout */
+  .app{display:flex;min-height:100vh}
+  .sidebar{width:220px;background:var(--surface);border-right:1px solid var(--line);padding:20px 14px;flex-shrink:0}
+  .logo{font-weight:700;font-size:17px;padding:6px 10px 18px;display:flex;gap:8px;align-items:center}
+  .logo .dot{width:10px;height:10px;border-radius:3px;background:var(--accent)}
+  .nav-item{display:flex;align-items:center;gap:10px;width:100%;padding:9px 10px;border-radius:8px;color:var(--muted);font-weight:500;text-align:left}
+  .nav-item.active{background:var(--accent-soft);color:var(--accent)}
+  .nav-item:hover:not(.active){background:var(--bg)}
+  .nav-sep{margin:14px 10px 6px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .topbar{display:flex;align-items:center;gap:12px;padding:16px 28px;border-bottom:1px solid var(--line);background:var(--surface)}
+  .topbar h1{font-size:18px;font-weight:650}
+  .topbar .sub{color:var(--muted);font-size:13px}
+  .spacer{flex:1}
+  .content{padding:24px 28px 100px;overflow-y:auto;max-width:840px;width:100%}
+
+  .btn{padding:8px 14px;border-radius:8px;font-weight:600;font-size:14px;background:var(--bg);border:1px solid var(--line)}
+  .btn:hover{background:#ececf0}
+  .btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn-primary:hover{background:#4338ca}
+  .btn-sm{padding:5px 10px;font-size:13px}
+
+  /* stream group */
+  .stream{margin-bottom:18px}
+  .stream-head{display:flex;align-items:center;gap:9px;padding:6px 2px;font-weight:650}
+  .stream-head .cdot{width:9px;height:9px;border-radius:50%}
+  .stream-head .tag{font-size:11px;font-weight:600;color:var(--muted);background:var(--bg);padding:2px 7px;border-radius:6px}
+  .stream-count{color:var(--muted);font-weight:500;font-size:13px}
+
+  /* task row */
+  .task{display:flex;align-items:flex-start;gap:11px;background:var(--surface);border:1px solid var(--line);
+        border-radius:var(--radius);padding:12px 14px;margin-top:8px;cursor:pointer;transition:.12s}
+  .task:hover{border-color:#d3d6dd;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+  .task.dragging{opacity:.4}
+  .task.drag-over{border-color:var(--accent);background:var(--accent-soft)}
+  .check{width:20px;height:20px;border:2px solid #cbd0d8;border-radius:6px;flex-shrink:0;margin-top:1px;
+         display:flex;align-items:center;justify-content:center;transition:.12s}
+  .task.done .check{background:var(--done);border-color:var(--done)}
+  .check svg{opacity:0}
+  .task.done .check svg{opacity:1}
+  .task-body{flex:1;min-width:0}
+  .task-title{font-weight:500}
+  .task.done .task-title{color:var(--done);text-decoration:line-through}
+  .task-meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+  .badge{font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;display:inline-flex;gap:4px;align-items:center}
+  .badge-carry{background:var(--warn-soft);color:var(--warn)}
+  .badge-note{background:var(--bg);color:var(--muted)}
+  .badge-due{background:#fde8e8;color:var(--danger)}
+  .badge-stream{background:var(--bg);color:var(--muted)}
+
+  .quick-add{display:flex;gap:8px;margin-top:10px}
+  .quick-add input{flex:1;padding:11px 14px;border:1px dashed #cbd0d8;border-radius:var(--radius);background:var(--surface)}
+  .quick-add input:focus{outline:none;border-color:var(--accent);border-style:solid}
+  .quick-add select{padding:0 10px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+
+  .empty{color:var(--muted);font-size:14px;padding:8px 2px}
+  .hint{background:var(--accent-soft);color:#3730a3;border-radius:var(--radius);padding:12px 14px;font-size:13px;margin-bottom:18px}
+
+  /* drawer */
+  .overlay{position:fixed;inset:0;background:rgba(20,22,28,.42);display:none;z-index:40}
+  .overlay.show{display:block}
+  .drawer{position:fixed;top:0;right:0;height:100vh;width:420px;max-width:92vw;background:var(--surface);
+          box-shadow:var(--shadow);z-index:50;transform:translateX(100%);transition:.22s;display:flex;flex-direction:column}
+  .drawer.show{transform:translateX(0)}
+  .drawer-head{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+  .drawer-body{padding:20px;overflow-y:auto;flex:1}
+  .field{margin-bottom:18px}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+  .field input,.field textarea,.field select{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+  .field textarea{min-height:130px;resize:vertical}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--accent);background:var(--surface)}
+  .iconbtn{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+  .iconbtn:hover{background:var(--bg)}
+
+  /* modal */
+  .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%) scale(.96);z-index:50;
+         width:560px;max-width:94vw;max-height:88vh;background:var(--surface);border-radius:16px;
+         box-shadow:var(--shadow);display:none;flex-direction:column;opacity:0;transition:.16s}
+  .modal.show{display:flex;opacity:1;transform:translate(-50%,-50%) scale(1)}
+  .modal-head{padding:18px 22px;border-bottom:1px solid var(--line)}
+  .modal-head h2{font-size:17px}
+  .modal-head p{color:var(--muted);font-size:13px;margin-top:3px}
+  .modal-body{padding:18px 22px;overflow-y:auto}
+  .modal-foot{padding:14px 22px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+
+  /* review item */
+  .rev-item{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+  .rev-item .rt{font-weight:500;margin-bottom:8px}
+  .rev-actions{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{padding:5px 11px;border-radius:7px;font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--bg)}
+  .chip.sel-today{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .chip.sel-keep{background:#e8eaed;border-color:#d3d6dd}
+  .chip.sel-done{background:#dcfce7;color:#15803d;border-color:#bbf7d0}
+  .chip.sel-del{background:#fde8e8;color:var(--danger);border-color:#f5c6c6}
+  .ai-note{background:var(--warn-soft);color:var(--warn);border-radius:10px;padding:10px 13px;font-size:13px;margin:4px 0 14px;display:flex;gap:8px}
+
+  .ai-parse{background:var(--accent-soft);border-radius:10px;padding:12px 14px;margin-top:12px;font-size:13px}
+  .ai-parse .lbl{font-weight:700;color:var(--accent);font-size:11px;text-transform:uppercase;letter-spacing:.05em;display:flex;gap:6px;align-items:center}
+
+  .add-option{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;border:1px solid var(--line);
+    border-radius:12px;padding:14px 16px;margin-bottom:10px;background:var(--surface)}
+  .add-option:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .add-option .ico{font-size:22px;line-height:1}
+  .add-option .ttl{font-weight:650;display:block}
+  .add-option .desc{color:var(--muted);font-size:13px;margin-top:2px;display:block}
+  .back-link{color:var(--accent);font-weight:600;font-size:13px;margin-bottom:14px;display:inline-block}
+  .det-item{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;margin-bottom:8px;background:var(--surface)}
+  .swatches{display:flex;gap:8px;flex-wrap:wrap}
+  .swatch{width:30px;height:30px;border-radius:8px;border:2px solid transparent;box-shadow:0 0 0 1px var(--line)}
+  .swatch.sel{border-color:#fff;box-shadow:0 0 0 2px var(--text)}
+  .add-stream{margin-top:4px}
+  .stream-edit{margin-left:auto;font-size:13px}
+  .reorder{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
+  .reorder button{width:22px;height:17px;border-radius:5px;color:var(--muted);font-size:9px;line-height:1}
+  .reorder button:hover{background:var(--bg);color:var(--text)}
+  .remove-today{flex-shrink:0;font-size:15px;align-self:center;color:var(--muted)}
+  .remove-today:hover{background:var(--warn-soft);color:var(--warn)}
+
+  /* mobile nav */
+  .mobilenav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);
+             border-top:1px solid var(--line);z-index:30}
+  .mobilenav .nav-item{flex-direction:column;gap:3px;font-size:11px;padding:8px 0;border-radius:0;justify-content:center}
+  .fab{position:fixed;right:18px;bottom:78px;width:54px;height:54px;border-radius:50%;background:var(--accent);
+       color:#fff;font-size:26px;box-shadow:var(--shadow);z-index:30;display:none;align-items:center;justify-content:center}
+
+  @media(max-width:760px){
+    .sidebar{display:none}
+    .topbar{padding:14px 16px}
+    .content{padding:16px 16px 110px}
+    .mobilenav{display:flex}
+    .mobilenav .nav-item{flex:1}
+    .fab{display:flex}
+    .drawer{width:100vw}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="logo"><span class="dot"></span> Task Controller</div>
+    <button class="nav-item active" data-view="today" onclick="setView('today')">📋 Сегодня</button>
+    <button class="nav-item" data-view="streams" onclick="setView('streams')">🗂 Стримы</button>
+    <div class="nav-sep">Действия</div>
+    <button class="nav-item" onclick="openReview()">🌅 Утреннее ревью</button>
+    <button class="nav-item" onclick="openAdd()">➕ Новая задача</button>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="topbar">
+      <div>
+        <h1 id="viewTitle">Сегодня</h1>
+        <div class="sub" id="viewSub">Суббота, 17 мая</div>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn btn-primary btn-sm" onclick="openReview()">🌅 Ревью дня</button>
+    </div>
+    <div class="content" id="content"></div>
+  </div>
+</div>
+
+<!-- MOBILE NAV -->
+<nav class="mobilenav">
+  <button class="nav-item active" data-view="today" onclick="setView('today')">📋<span>Сегодня</span></button>
+  <button class="nav-item" data-view="streams" onclick="setView('streams')">🗂<span>Стримы</span></button>
+</nav>
+<button class="fab" onclick="openAdd()">+</button>
+
+<!-- OVERLAY -->
+<div class="overlay" id="overlay" onclick="closeAll()"></div>
+
+<!-- TASK DRAWER -->
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <strong style="flex:1">Карточка задачи</strong>
+    <button class="iconbtn" onclick="closeAll()">✕</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</aside>
+
+<!-- REVIEW MODAL -->
+<div class="modal" id="reviewModal">
+  <div class="modal-head">
+    <h2>🌅 Утреннее ревью</h2>
+    <p>Разберите незавершённое со вчера и соберите реалистичный план на сегодня</p>
+  </div>
+  <div class="modal-body" id="reviewBody"></div>
+  <div class="modal-foot">
+    <button class="btn" onclick="closeAll()">Отмена</button>
+    <button class="btn btn-primary" onclick="applyReview()">Собрать план дня</button>
+  </div>
+</div>
+
+<!-- ADD MODAL -->
+<div class="modal" id="addModal">
+  <div class="modal-head">
+    <h2 id="addTitle">Новая задача</h2>
+    <p id="addSub"></p>
+  </div>
+  <div class="modal-body" id="addBody"></div>
+  <div class="modal-foot" id="addFoot"></div>
+</div>
+
+<!-- STREAM MODAL -->
+<div class="modal" id="streamModal">
+  <div class="modal-head">
+    <h2 id="strModalTitle">Новый стрим</h2>
+    <p>Стрим — это проект или направление, в которое группируются задачи</p>
+  </div>
+  <div class="modal-body">
+    <div class="field">
+      <label>Название</label>
+      <input id="strName" placeholder="Напр.: Стратегия продукта">
+    </div>
+    <div class="field" style="margin-bottom:0">
+      <label>Цвет</label>
+      <div class="swatches" id="strSwatches"></div>
+    </div>
+  </div>
+  <div class="modal-foot" id="strModalFoot"></div>
+</div>
+
+<script>
+/* ---------- mock data ---------- */
+const streams = [
+  {id:'s1', name:'Стратегия продукта', color:'#4f46e5', type:'свой'},
+  {id:'s2', name:'Онбординг (матрица)', color:'#0ea5e9', type:'проектный'},
+  {id:'s3', name:'Платёжный стрим (матрица)', color:'#10b981', type:'проектный'},
+];
+let tasks = [
+  {id:1, title:'Финализировать стратегию H2 — раздел по retention', stream:'s1', done:false, today:true,
+   carry:2, deadline:'', notes:'Спорный момент — закладывать ли отдельную команду под win-back. Обсудить с аналитикой цифры по оттоку.'},
+  {id:2, title:'Согласовать макет экрана верификации', stream:'s2', done:false, today:true,
+   carry:0, deadline:'2026-05-17', notes:'Дизайн ждёт решение по флоу, иначе встанут.'},
+  {id:3, title:'Ревью PRD по сплит-платежам от Артёма', stream:'s3', done:false, today:true,
+   carry:1, deadline:'', notes:'Артём прислал v2. Проверить раздел про лимиты и комиссии.'},
+  {id:4, title:'Ответить продуктовому совету по приоритизации', stream:'s1', done:true, today:true,
+   carry:0, deadline:'', notes:''},
+  {id:5, title:'Накидать тезисы для встречи с руководителем', stream:'s1', done:false, today:false,
+   carry:0, deadline:'', notes:'1:1 в среду. Поднять вопрос ресурсов на стратегический стрим.'},
+  {id:6, title:'Проверить метрики активации после релиза', stream:'s2', done:false, today:false,
+   carry:0, deadline:'', notes:''},
+  {id:7, title:'Уточнить у легала требования по хранению токенов', stream:'s3', done:false, today:false,
+   carry:3, deadline:'', notes:'Висит давно — каждый раз не доходят руки. Возможно, делегировать.'},
+];
+let nextId = 8;
+let view = 'today', openTaskId = null, reviewState = {}, addMode = 'choose';
+
+const streamById = id => streams.find(s=>s.id===id);
+const esc = s => (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+/* ---------- views ---------- */
+function setView(v){
+  view = v;
+  document.querySelectorAll('.nav-item[data-view]').forEach(n=>
+    n.classList.toggle('active', n.dataset.view===v));
+  document.getElementById('viewTitle').textContent = v==='today'?'Сегодня':'Стримы';
+  document.getElementById('viewSub').textContent = v==='today'
+    ? 'Суббота, 17 мая' : streams.length+' активных стрима';
+  render();
+}
+
+function render(){ view==='today' ? renderToday() : renderStreams(); }
+
+function taskRow(t){
+  const s = streamById(t.stream);
+  const overdue = t.deadline && t.deadline <= '2026-05-17' && !t.done;
+  return `<div class="task ${t.done?'done':''}" draggable="true" onclick="openTask(${t.id})"
+    ondragstart="dragStart(event,${t.id})" ondragend="dragEnd(event)"
+    ondragover="dragOver(event,${t.id})" ondragleave="dragLeave(event)"
+    ondrop="dragDrop(event,${t.id})">
+    <div class="check" onclick="event.stopPropagation();toggleDone(${t.id})">
+      <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <div class="task-body">
+      <div class="task-title">${esc(t.title)}</div>
+      <div class="task-meta">
+        ${t.carry>0?`<span class="badge badge-carry">↻ перенесена ×${t.carry}</span>`:''}
+        ${overdue?`<span class="badge badge-due">⏰ дедлайн сегодня</span>`:''}
+        ${t.notes?`<span class="badge badge-note">✎ заметка</span>`:''}
+      </div>
+    </div>
+    <button class="iconbtn remove-today" title="Убрать из сегодня (останется в стриме)"
+      onclick="event.stopPropagation();removeFromToday(${t.id})">↩</button>
+    <div class="reorder">
+      <button onclick="event.stopPropagation();moveTask(${t.id},-1)">▲</button>
+      <button onclick="event.stopPropagation();moveTask(${t.id},1)">▼</button>
+    </div>
+  </div>`;
+}
+
+function renderToday(){
+  const c = document.getElementById('content');
+  const today = tasks.filter(t=>t.today);
+  let html = '';
+  streams.forEach(s=>{
+    const list = today.filter(t=>t.stream===s.id);
+    if(!list.length) return;
+    html += `<div class="stream">
+      <div class="stream-head">
+        <span class="cdot" style="background:${s.color}"></span>
+        ${esc(s.name)}
+      </div>
+      ${list.map(taskRow).join('')}
+      <div class="quick-add">
+        <input placeholder="+ Задача в «${esc(s.name)}»" onkeydown="if(event.key==='Enter')quickAdd('${s.id}',this)">
+      </div>
+    </div>`;
+  });
+  c.innerHTML = html;
+}
+
+function renderStreams(){
+  const c = document.getElementById('content');
+  let html = '';
+  streams.forEach(s=>{
+    const list = tasks.filter(t=>t.stream===s.id);
+    html += `<div class="stream">
+      <div class="stream-head">
+        <span class="cdot" style="background:${s.color}"></span>
+        ${esc(s.name)}
+        <button class="iconbtn stream-edit" onclick="openStream('${s.id}')">✎</button>
+      </div>`;
+    if(!list.length) html += `<div class="empty">Пока пусто</div>`;
+    list.forEach(t=>{
+      html += `<div class="task ${t.done?'done':''}" draggable="true"
+        ondragstart="dragStart(event,${t.id})" ondragend="dragEnd(event)"
+        ondragover="dragOver(event,${t.id})" ondragleave="dragLeave(event)"
+        ondrop="dragDrop(event,${t.id})">
+        <div class="check" onclick="toggleDone(${t.id})">
+          <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 6l3 3 5-6" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task-body" onclick="openTask(${t.id})">
+          <div class="task-title">${esc(t.title)}</div>
+          <div class="task-meta">
+            ${t.today?'<span class="badge badge-stream">в плане на сегодня</span>':''}
+            ${t.carry>0?`<span class="badge badge-carry">↻ ×${t.carry}</span>`:''}
+            ${t.notes?'<span class="badge badge-note">✎ заметка</span>':''}
+          </div>
+        </div>
+        ${!t.today&&!t.done?`<button class="btn btn-sm" onclick="toToday(${t.id})">→ В сегодня</button>`:''}
+        <div class="reorder">
+          <button onclick="moveTask(${t.id},-1)">▲</button>
+          <button onclick="moveTask(${t.id},1)">▼</button>
+        </div>
+      </div>`;
+    });
+    html += `<div class="quick-add">
+        <input placeholder="+ Задача в «${esc(s.name)}»" onkeydown="if(event.key==='Enter')quickAdd('${s.id}',this)">
+      </div></div>`;
+  });
+  html += `<button class="btn add-stream" onclick="openStream()">＋ Новый стрим</button>`;
+  c.innerHTML = html;
+}
+
+/* ---------- task actions ---------- */
+function toggleDone(id){ const t=tasks.find(x=>x.id===id); t.done=!t.done; render(); if(openTaskId===id) renderDrawer(); }
+function toToday(id){ tasks.find(x=>x.id===id).today=true; render(); }
+function removeFromToday(id){ tasks.find(x=>x.id===id).today=false; render(); if(openTaskId===id) renderDrawer(); }
+function quickAdd(streamId, el){
+  const v = el.value.trim(); if(!v) return;
+  tasks.push({id:nextId++, title:v, stream:streamId, done:false, today:view==='today',
+    carry:0, deadline:'', notes:''});
+  el.value=''; render();
+}
+function moveTask(id, dir){
+  const t=tasks.find(x=>x.id===id); if(!t) return;
+  const scope = view==='today'
+    ? tasks.filter(x=>x.today && x.stream===t.stream)
+    : tasks.filter(x=>x.stream===t.stream);
+  const swapWith = scope[scope.indexOf(t)+dir];
+  if(!swapWith) return;
+  const i=tasks.indexOf(t), j=tasks.indexOf(swapWith);
+  tasks[i]=swapWith; tasks[j]=t;
+  render();
+}
+
+/* ---------- drag & drop reordering ---------- */
+let draggingTaskId=null;
+function dragStart(e,id){
+  draggingTaskId=id;
+  e.dataTransfer.effectAllowed='move';
+  e.dataTransfer.setData('text/plain', String(id));
+  e.currentTarget.classList.add('dragging');
+}
+function dragEnd(){
+  draggingTaskId=null;
+  document.querySelectorAll('.task').forEach(el=>el.classList.remove('dragging','drag-over'));
+}
+function dragOver(e,tgtId){
+  if(draggingTaskId==null||draggingTaskId===tgtId) return;
+  const src=tasks.find(x=>x.id===draggingTaskId);
+  const tgt=tasks.find(x=>x.id===tgtId);
+  if(!src||!tgt||src.stream!==tgt.stream) return;
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+}
+function dragLeave(e){ e.currentTarget.classList.remove('drag-over'); }
+function dragDrop(e,tgtId){
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  if(draggingTaskId==null) return;
+  const rect=e.currentTarget.getBoundingClientRect();
+  const after=(e.clientY-rect.top) > rect.height/2;
+  moveTaskTo(draggingTaskId, tgtId, after);
+  draggingTaskId=null;
+}
+function moveTaskTo(srcId, tgtId, after){
+  if(srcId===tgtId) return;
+  const src=tasks.find(x=>x.id===srcId);
+  const tgt=tasks.find(x=>x.id===tgtId);
+  if(!src||!tgt||src.stream!==tgt.stream) return;
+  tasks.splice(tasks.indexOf(src),1);
+  let tgtIdx=tasks.indexOf(tgt);
+  if(after) tgtIdx++;
+  tasks.splice(tgtIdx,0,src);
+  render();
+}
+
+/* ---------- drawer ---------- */
+function openTask(id){
+  openTaskId=id; renderDrawer();
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById('drawer').classList.add('show');
+}
+function renderDrawer(){
+  const t = tasks.find(x=>x.id===openTaskId); if(!t) return;
+  document.getElementById('drawerBody').innerHTML = `
+    <div class="field">
+      <label>Формулировка</label>
+      <input value="${esc(t.title)}" onchange="tasks.find(x=>x.id===${t.id}).title=this.value;render()">
+    </div>
+    <div class="field">
+      <label>Стрим</label>
+      <select onchange="tasks.find(x=>x.id===${t.id}).stream=this.value;render()">
+        ${streams.map(s=>`<option value="${s.id}" ${s.id===t.stream?'selected':''}>${esc(s.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div class="field">
+      <label>Статус</label>
+      <div style="display:flex;gap:8px">
+        <button class="chip ${!t.done?'sel-today':''}" onclick="tasks.find(x=>x.id===${t.id}).done=false;render();renderDrawer()">Открыта</button>
+        <button class="chip ${t.done?'sel-done':''}" onclick="tasks.find(x=>x.id===${t.id}).done=true;render();renderDrawer()">Выполнена</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>План на сегодня</label>
+      <div style="display:flex;gap:8px">
+        ${t.today
+          ? `<button class="chip sel-today" onclick="removeFromToday(${t.id})">↩ Убрать из сегодня</button>`
+          : `<button class="chip" onclick="toToday(${t.id});renderDrawer()">→ В сегодня</button>`}
+      </div>
+    </div>
+    <div class="field">
+      <label>Дедлайн (опционально)</label>
+      <input type="date" value="${t.deadline}" onchange="tasks.find(x=>x.id===${t.id}).deadline=this.value;render()">
+    </div>
+    <div class="field">
+      <label>Заметки и контекст</label>
+      <textarea placeholder="Мысли по задаче, ссылки, ход обсуждения…" onchange="tasks.find(x=>x.id===${t.id}).notes=this.value;render()">${esc(t.notes)}</textarea>
+    </div>
+    <div class="ai-note" style="background:var(--bg);color:var(--muted)">
+      <span>ℹ️</span>
+      <span>Создана задача · переносилась ${t.carry} раз${t.carry===1?'':' (раз)'}</span>
+    </div>`;
+}
+
+/* ---------- review ---------- */
+function openReview(){
+  const carried = tasks.filter(t=>!t.done && !t.today);
+  reviewState={}; carried.forEach(t=>reviewState[t.id]='keep');
+  let html='';
+  if(!carried.length){
+    html='<div class="empty">Нет незавершённых задач со вчера 🎉</div>';
+  } else {
+    html=`<div class="ai-note"><span>✨</span><span><b>AI:</b> со вчера осталось ${carried.length} задач${carried.length>4?'. Это много — отметьте на сегодня только 3–4 ключевые, остальное оставьте в бэклоге.':'. Разберите каждую.'}</span></div>`;
+    carried.forEach(t=>{
+      const s=streamById(t.stream);
+      html+=`<div class="rev-item">
+        <div class="rt"><span class="cdot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${s.color};margin-right:6px"></span>${esc(t.title)}
+          ${t.carry>0?`<span class="badge badge-carry" style="margin-left:6px">↻ ×${t.carry}</span>`:''}</div>
+        <div class="rev-actions" data-task="${t.id}">
+          <button class="chip" onclick="setRev(${t.id},'today',this)">→ На сегодня</button>
+          <button class="chip sel-keep" onclick="setRev(${t.id},'keep',this)">В бэклоге</button>
+          <button class="chip" onclick="setRev(${t.id},'done',this)">✓ Выполнена</button>
+          <button class="chip" onclick="setRev(${t.id},'del',this)">🗑 Удалить</button>
+        </div>
+      </div>`;
+    });
+  }
+  document.getElementById('reviewBody').innerHTML=html;
+  showModal('reviewModal');
+}
+function setRev(id,val,btn){
+  reviewState[id]=val;
+  const row=btn.parentElement;
+  row.querySelectorAll('.chip').forEach(c=>c.className='chip'+(c.textContent.includes('бэклог')?' ':' '));
+  row.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel-today','sel-keep','sel-done','sel-del'));
+  btn.classList.add('sel-'+val);
+}
+function applyReview(){
+  Object.entries(reviewState).forEach(([id,val])=>{
+    const t=tasks.find(x=>x.id===+id); if(!t) return;
+    if(val==='today'){ t.today=true; t.carry++; }
+    else if(val==='done'){ t.done=true; }
+    else if(val==='del'){ tasks=tasks.filter(x=>x.id!==+id); }
+  });
+  closeAll(); setView('today');
+}
+
+/* ---------- add task: manual / recognize ---------- */
+function openAdd(){ addMode='choose'; renderAdd(); showModal('addModal'); }
+
+function renderAdd(){
+  const body=document.getElementById('addBody');
+  const foot=document.getElementById('addFoot');
+  const ttl=document.getElementById('addTitle');
+  const sub=document.getElementById('addSub');
+  if(addMode==='choose'){
+    ttl.textContent='Новая задача';
+    sub.textContent='Как добавить задачу?';
+    body.innerHTML=`
+      <button class="add-option" onclick="addMode='manual';renderAdd()">
+        <span class="ico">✍️</span>
+        <span><span class="ttl">Ввести вручную</span>
+        <span class="desc">Сами задаёте формулировку и стрим</span></span>
+      </button>
+      <button class="add-option" onclick="addMode='recognize';renderAdd()">
+        <span class="ico">✨</span>
+        <span><span class="ttl">Разобрать из текста</span>
+        <span class="desc">Пишете в свободной форме, что нужно сделать — система распознаёт и разбивает на отдельные задачи</span></span>
+      </button>`;
+    foot.innerHTML=`<button class="btn" onclick="closeAll()">Закрыть</button>`;
+  }
+  else if(addMode==='manual'){
+    ttl.textContent='Ввести вручную';
+    sub.textContent='Сами задаёте формулировку и стрим';
+    body.innerHTML=`
+      <button class="back-link" onclick="addMode='choose';renderAdd()">← Назад</button>
+      <div class="field">
+        <label>Формулировка</label>
+        <input id="mTitle" placeholder="Что нужно сделать">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>Стрим</label>
+        <select id="mStream">
+          ${streams.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}
+        </select>
+      </div>`;
+    foot.innerHTML=`<button class="btn" onclick="closeAll()">Отмена</button>
+      <button class="btn btn-primary" onclick="saveManual()">Создать задачу</button>`;
+  }
+  else {
+    ttl.textContent='Разобрать из текста';
+    sub.textContent='Опишите в свободной форме, что нужно сделать';
+    body.innerHTML=`
+      <button class="back-link" onclick="addMode='choose';renderAdd()">← Назад</button>
+      <div class="field">
+        <label>Свободный текст</label>
+        <textarea id="recRaw" placeholder="Напр.: До конца недели разобраться со стратегией retention. Ещё нужно посмотреть PRD Артёма по сплит-платежам и не забыть ответить продуктовому совету по приоритизации."></textarea>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="runRecognize()">✨ Распознать задачи</button>
+      <div id="recResult"></div>`;
+    foot.innerHTML=`<button class="btn" onclick="closeAll()">Отмена</button>
+      <button class="btn btn-primary" id="recSave" onclick="saveRecognized()" style="display:none">Создать задачи</button>`;
+  }
+}
+
+function saveManual(){
+  const t=document.getElementById('mTitle').value.trim(); if(!t) return;
+  tasks.push({id:nextId++, title:t, stream:document.getElementById('mStream').value,
+    done:false, today:true, carry:0, deadline:'', notes:''});
+  closeAll(); setView('today');
+}
+
+function guessStream(text){
+  const l=text.toLowerCase();
+  if(/верификац|онбординг|активац/.test(l)) return 's2';
+  if(/платеж|сплит|комисс|лимит/.test(l)) return 's3';
+  return 's1';
+}
+
+function splitTasks(raw){
+  return raw
+    .replace(/\bа\s+ещё\b/gi,'\n').replace(/\bещё\b/gi,'\n')
+    .replace(/\bтакже\b/gi,'\n').replace(/\bне\s+забыть\b/gi,'\n')
+    .replace(/\bпотом\b/gi,'\n')
+    .split(/[\n;.!?]+/)
+    .map(p=>p.replace(/^[\s,–-]*(и|а|нужно|надо)\s+/i,'').trim())
+    .filter(p=>p.length>5)
+    .map(p=>p.charAt(0).toUpperCase()+p.slice(1));
+}
+
+function runRecognize(){
+  const raw=document.getElementById('recRaw').value.trim(); if(!raw) return;
+  const found=splitTasks(raw);
+  const res=document.getElementById('recResult');
+  if(!found.length){
+    res.innerHTML='<div class="empty">Не удалось выделить задачи — уточните текст.</div>';
+    document.getElementById('recSave').style.display='none';
+    return;
+  }
+  res.innerHTML=`<div class="ai-parse">
+    <div class="lbl">✨ Распознано задач: ${found.length}</div>
+    <div style="font-size:12px;color:var(--muted);margin:6px 0 10px">Проверьте формулировки и стримы, снимите галочку с лишнего.</div>
+    ${found.map(t=>`<div class="det-item">
+      <input type="checkbox" class="det-cb" checked style="margin-top:11px">
+      <div style="flex:1">
+        <input class="det-title" value="${esc(t)}" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface);margin-bottom:6px">
+        <select class="det-stream" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface)">
+          ${streams.map(s=>`<option value="${s.id}" ${s.id===guessStream(t)?'selected':''}>${esc(s.name)}</option>`).join('')}
+        </select>
+      </div>
+    </div>`).join('')}
+  </div>`;
+  document.getElementById('recSave').style.display='';
+}
+
+function saveRecognized(){
+  let added=0;
+  document.querySelectorAll('#recResult .det-item').forEach(it=>{
+    if(!it.querySelector('.det-cb').checked) return;
+    const title=it.querySelector('.det-title').value.trim(); if(!title) return;
+    tasks.push({id:nextId++, title, stream:it.querySelector('.det-stream').value,
+      done:false, today:true, carry:0, deadline:'', notes:''});
+    added++;
+  });
+  if(!added) return;
+  closeAll(); setView('today');
+}
+
+/* ---------- create stream ---------- */
+const palette=['#4f46e5','#0ea5e9','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#64748b'];
+let newStreamColor=palette[0], editingStreamId=null;
+
+function openStream(id){
+  editingStreamId = id || null;
+  const s = editingStreamId ? streamById(editingStreamId) : null;
+  newStreamColor = s ? s.color : palette[0];
+  document.getElementById('strName').value = s ? s.name : '';
+  document.getElementById('strModalTitle').textContent = s ? 'Редактировать стрим' : 'Новый стрим';
+  document.getElementById('strModalFoot').innerHTML = s
+    ? `<button class="btn" style="color:var(--danger)" onclick="deleteStream()">Удалить</button>
+       <span class="spacer"></span>
+       <button class="btn" onclick="closeAll()">Отмена</button>
+       <button class="btn btn-primary" onclick="saveStream()">Сохранить</button>`
+    : `<button class="btn" onclick="closeAll()">Отмена</button>
+       <button class="btn btn-primary" onclick="saveStream()">Создать стрим</button>`;
+  renderSwatches();
+  showModal('streamModal');
+}
+function renderSwatches(){
+  document.getElementById('strSwatches').innerHTML=palette.map(c=>
+    `<button type="button" class="swatch ${c===newStreamColor?'sel':''}" style="background:${c}" onclick="newStreamColor='${c}';renderSwatches()"></button>`).join('');
+}
+function saveStream(){
+  const name=document.getElementById('strName').value.trim(); if(!name) return;
+  if(editingStreamId){
+    const s=streamById(editingStreamId);
+    s.name=name; s.color=newStreamColor;
+  } else {
+    streams.push({id:'s'+Date.now(), name, color:newStreamColor, type:'свой'});
+  }
+  closeAll(); setView('streams');
+}
+function deleteStream(){
+  if(!editingStreamId) return;
+  const n=tasks.filter(t=>t.stream===editingStreamId).length;
+  if(n && !confirm('Удалить стрим вместе с задачами в нём ('+n+')?')) return;
+  tasks=tasks.filter(t=>t.stream!==editingStreamId);
+  const idx=streams.findIndex(s=>s.id===editingStreamId);
+  if(idx>-1) streams.splice(idx,1);
+  closeAll(); setView('streams');
+}
+
+/* ---------- modal helpers ---------- */
+function showModal(id){
+  document.getElementById('overlay').classList.add('show');
+  document.getElementById(id).classList.add('show');
+}
+function closeAll(){
+  document.getElementById('overlay').classList.remove('show');
+  document.getElementById('drawer').classList.remove('show');
+  document.querySelectorAll('.modal').forEach(m=>m.classList.remove('show'));
+  openTaskId=null;
+}
+
+render();
+</script>
+</body>
+</html>
