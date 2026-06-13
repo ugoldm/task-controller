@@ -85,10 +85,7 @@ function taskRowToday(t) {
     </div>
     <button class="iconbtn remove-today" title="Убрать из сегодня (останется в стриме)"
       onclick="event.stopPropagation();removeFromToday(${t.id})">↩</button>
-    <div class="reorder">
-      <button onclick="event.stopPropagation();moveTask(${t.id},-1)">▲</button>
-      <button onclick="event.stopPropagation();moveTask(${t.id},1)">▼</button>
-    </div>
+    <span class="drag-handle" title="Перетащите, чтобы изменить порядок" onclick="event.stopPropagation()">⠿</span>
   </div>`;
 }
 
@@ -161,10 +158,7 @@ function streamTaskRow(t) {
         ? `<button class="btn today-btn" onclick="removeFromToday(${t.id})">↩ Убрать из сегодня</button>`
         : `<button class="btn today-btn" onclick="toToday(${t.id})">→ В сегодня</button>`)}
     </div>
-    <div class="reorder">
-      <button onclick="moveTask(${t.id},-1)">▲</button>
-      <button onclick="moveTask(${t.id},1)">▼</button>
-    </div>
+    <span class="drag-handle" title="Перетащите, чтобы изменить порядок">⠿</span>
   </div>`;
 }
 
@@ -188,18 +182,6 @@ async function quickAdd(streamId, el) {
   state.tasks.push(t); render();
 }
 
-function moveTask(id, dir) {
-  const t = task(id); if (!t) return;
-  const scope = view === 'today'
-    ? state.tasks.filter((x) => x.today && x.stream === t.stream)
-    : state.tasks.filter((x) => x.stream === t.stream);
-  const swapWith = scope[scope.indexOf(t) + dir];
-  if (!swapWith) return;
-  const i = state.tasks.indexOf(t), j = state.tasks.indexOf(swapWith);
-  state.tasks[i] = swapWith; state.tasks[j] = t;
-  render();
-  persistReorder(t.stream);
-}
 function persistReorder(streamId) {
   const orderedIds = state.tasks.filter((t) => t.stream === streamId).map((t) => t.id);
   persist('POST', '/api/tasks/reorder', { orderedIds });
@@ -491,7 +473,7 @@ function closeAll() {
 
 // expose handlers used in inline onclick
 Object.assign(window, {
-  setView, openTask, toggleDone, toToday, removeFromToday, quickAdd, moveTask,
+  setView, openTask, toggleDone, toToday, removeFromToday, quickAdd,
   dragStart, dragEnd, dragOver, dragLeave, dragDrop, toggleExpandDone,
   updateField, setDone, deleteTask, openReview, setRev, applyReview,
   openAdd, renderAdd, saveManual, runRecognize, saveRecognized,
