@@ -115,22 +115,27 @@ function renderStreams() {
     const list = state.tasks.filter((t) => t.stream === s.id);
     html += `<div class="stream">
       <div class="stream-head">
+        <button class="iconbtn stream-collapse" title="${s.collapsed ? 'Развернуть стрим' : 'Свернуть стрим'}" onclick="toggleCollapse('${s.id}')">${s.collapsed ? '▸' : '▾'}</button>
         <span class="cdot" style="background:${s.color}"></span>${esc(s.name)}
+        ${s.collapsed && list.length ? `<span class="stream-count">${list.length} задач скрыто</span>` : ''}
         <button class="iconbtn stream-edit" onclick="openStream('${s.id}')">✎</button>
       </div>`;
-    const open = list.filter((t) => !t.done);
-    const done = list.filter((t) => t.done).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0));
-    if (!list.length) html += `<div class="empty">Пока пусто</div>`;
-    open.forEach((t) => { html += streamTaskRow(t); });
-    const expanded = !!expandedDone[s.id];
-    (expanded ? done : done.slice(0, 2)).forEach((t) => { html += streamTaskRow(t); });
-    if (done.length > 2) {
-      html += `<button class="btn-link" onclick="toggleExpandDone('${s.id}')">${
-        expanded ? '▴ Свернуть выполненные' : `▾ Показать ещё ${done.length - 2} выполненных`}</button>`;
-    }
-    html += `<div class="quick-add">
+    if (!s.collapsed) {
+      const open = list.filter((t) => !t.done);
+      const done = list.filter((t) => t.done).sort((a, b) => (b.closedAt || 0) - (a.closedAt || 0));
+      if (!list.length) html += `<div class="empty">Пока пусто</div>`;
+      open.forEach((t) => { html += streamTaskRow(t); });
+      const expanded = !!expandedDone[s.id];
+      (expanded ? done : done.slice(0, 2)).forEach((t) => { html += streamTaskRow(t); });
+      if (done.length > 2) {
+        html += `<button class="btn-link" onclick="toggleExpandDone('${s.id}')">${
+          expanded ? '▴ Свернуть выполненные' : `▾ Показать ещё ${done.length - 2} выполненных`}</button>`;
+      }
+      html += `<div class="quick-add">
         <input placeholder="+ Задача в «${esc(s.name)}»" autocomplete="off" onkeydown="if(event.key==='Enter')quickAdd('${s.id}',this)">
-      </div></div>`;
+      </div>`;
+    }
+    html += `</div>`;
   });
   html += `<button class="btn add-stream" onclick="openStream()">＋ Новый стрим</button>`;
   c.innerHTML = html;
@@ -163,6 +168,13 @@ function streamTaskRow(t) {
 }
 
 function toggleExpandDone(streamId) { expandedDone[streamId] = !expandedDone[streamId]; render(); }
+
+function toggleCollapse(streamId) {
+  const s = streamById(streamId); if (!s) return;
+  s.collapsed = !s.collapsed;
+  render();
+  persist('PATCH', '/api/streams/' + streamId, { collapsed: s.collapsed });
+}
 
 /* ---------- task actions ---------- */
 function toggleDone(id) {
@@ -496,7 +508,7 @@ function unlockScroll() {
 // expose handlers used in inline onclick
 Object.assign(window, {
   setView, openTask, toggleDone, toToday, removeFromToday, quickAdd,
-  dragStart, dragEnd, dragOver, dragLeave, dragDrop, toggleExpandDone,
+  dragStart, dragEnd, dragOver, dragLeave, dragDrop, toggleExpandDone, toggleCollapse,
   updateField, setDone, deleteTask, openReview, setRev, applyReview,
   openAdd, renderAdd, saveManual, runRecognize, saveRecognized,
   openStream, renderSwatches, saveStream, deleteStream, closeAll, doLogin,

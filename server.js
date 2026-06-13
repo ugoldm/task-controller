@@ -143,10 +143,12 @@ app.patch('/api/streams/:id', requireAuth, (req, res) => {
   const name = req.body?.name?.trim() ?? existing.name;
   const color = req.body?.color ?? existing.color;
   const type = req.body?.type ?? existing.type;
-  db.prepare('UPDATE streams SET name = ?, color = ?, type = ? WHERE id = ?').run(
+  const collapsed = req.body?.collapsed !== undefined ? (req.body.collapsed ? 1 : 0) : existing.collapsed;
+  db.prepare('UPDATE streams SET name = ?, color = ?, type = ?, collapsed = ? WHERE id = ?').run(
     name,
     color,
     type,
+    collapsed,
     req.params.id
   );
   res.json(streamRow(db.prepare('SELECT * FROM streams WHERE id = ?').get(req.params.id)));

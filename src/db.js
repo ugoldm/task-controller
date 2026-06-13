@@ -16,6 +16,7 @@ db.exec(`
     color      TEXT NOT NULL,
     type       TEXT NOT NULL DEFAULT 'свой',
     position   INTEGER NOT NULL DEFAULT 0,
+    collapsed  INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL
   );
 
@@ -40,6 +41,12 @@ db.exec(`
 
   CREATE INDEX IF NOT EXISTS idx_tasks_stream ON tasks(stream_id);
 `);
+
+// Миграция для уже существующих баз: добавить колонку collapsed, если её нет.
+const streamCols = db.prepare('PRAGMA table_info(streams)').all().map((c) => c.name);
+if (!streamCols.includes('collapsed')) {
+  db.exec('ALTER TABLE streams ADD COLUMN collapsed INTEGER NOT NULL DEFAULT 0');
+}
 
 // Seed a first stream on a fresh DB so the app is usable immediately.
 const streamCount = db.prepare('SELECT COUNT(*) AS n FROM streams').get().n;
@@ -80,7 +87,7 @@ export function rolloverIfNewDay() {
 
 // --- serialization helpers (snake_case row -> camelCase client shape) ---
 export function streamRow(r) {
-  return { id: r.id, name: r.name, color: r.color, type: r.type, position: r.position };
+  return { id: r.id, name: r.name, color: r.color, type: r.type, position: r.position, collapsed: !!r.collapsed };
 }
 export function taskRow(r) {
   return {
