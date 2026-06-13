@@ -49,7 +49,7 @@
   .task:hover{border-color:#d3d6dd;box-shadow:0 2px 8px rgba(0,0,0,.04)}
   /* индикатор «в плане на сегодня» — акцентная полоса слева (вид «Стримы») */
   .task.in-today::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;
-        border-radius:var(--radius) 0 0 var(--radius);background:var(--accent)}
+        border-radius:var(--radius) 0 0 var(--radius);background:var(--stream, var(--accent))}
   .task.dragging{opacity:.4}
   .task.drag-over{border-color:var(--accent);background:var(--accent-soft)}
   .check{width:20px;height:20px;border:2px solid #cbd0d8;border-radius:6px;flex-shrink:0;

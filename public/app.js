@@ -139,7 +139,9 @@ function renderStreams() {
 }
 
 function streamTaskRow(t) {
-  return `<div class="task ${t.done ? 'done' : ''} ${t.today ? 'in-today' : ''}" draggable="true"
+  const s = streamById(t.stream);
+  const color = s ? s.color : 'var(--accent)';
+  return `<div class="task ${t.done ? 'done' : ''} ${t.today ? 'in-today' : ''}" style="--stream:${color}" draggable="true"
     ondragstart="dragStart(event,${t.id})" ondragend="dragEnd(event)"
     ondragover="dragOver(event,${t.id})" ondragleave="dragLeave(event)" ondrop="dragDrop(event,${t.id})">
     <div class="check" onclick="toggleDone(${t.id})">
