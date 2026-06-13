@@ -261,7 +261,15 @@ app.post('/api/ai/parse', requireAuth, async (req, res) => {
 });
 
 // --- static frontend ---
-app.use(express.static(join(__dirname, 'public')));
+app.use(
+  express.static(join(__dirname, 'public'), {
+    setHeaders(res, path) {
+      if (path.endsWith('.webmanifest')) res.setHeader('Content-Type', 'application/manifest+json');
+      // service worker не кешируем браузером, чтобы обновления подхватывались
+      if (path.endsWith('sw.js')) res.setHeader('Cache-Control', 'no-cache');
+    },
+  })
+);
 
 app.listen(PORT, () => {
   console.log(`Task Controller → http://localhost:${PORT}`);

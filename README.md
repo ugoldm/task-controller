@@ -18,6 +18,16 @@ npm start                   # http://localhost:3000
 
 База данных создаётся автоматически в `data/task-controller.sqlite` (каталог `data/` в `.gitignore`).
 
+## Установка на телефон (PWA)
+
+Приложение — PWA: его можно установить на телефон как обычное приложение (иконка, полный экран).
+Работает только по HTTPS-домену.
+- **Android (Chrome):** открой сайт → меню (⋮) → «Установить приложение».
+- **iPhone (Safari):** Поделиться → «На экран „Домой“».
+
+Иконки лежат в `public/icons/` (генерируются скриптом `scripts/gen-icons.py`, нужен Python+Pillow —
+только для пересборки иконок). Манифест — `public/manifest.webmanifest`, service worker — `public/sw.js`.
+
 ## Просмотр базы данных
 
 ```bash
