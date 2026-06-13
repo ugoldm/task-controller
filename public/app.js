@@ -68,6 +68,11 @@ function render() { view === 'today' ? renderToday() : renderStreams(); }
 
 function taskRowToday(t) {
   const overdue = t.deadline && t.deadline <= state.today && !t.done;
+  const meta = [
+    SHOW_CARRY_BADGE && t.carry > 0 ? `<span class="badge badge-carry">↻ перенесена ×${t.carry}</span>` : '',
+    overdue ? `<span class="badge badge-due">⏰ дедлайн сегодня</span>` : '',
+    t.notes ? `<span class="badge badge-note">✎ заметка</span>` : '',
+  ].join('');
   return `<div class="task ${t.done ? 'done' : ''}" draggable="true" onclick="openTask(${t.id})"
     ondragstart="dragStart(event,${t.id})" ondragend="dragEnd(event)"
     ondragover="dragOver(event,${t.id})" ondragleave="dragLeave(event)" ondrop="dragDrop(event,${t.id})">
@@ -76,11 +81,7 @@ function taskRowToday(t) {
     </div>
     <div class="task-body">
       <div class="task-title">${esc(t.title)}</div>
-      <div class="task-meta">
-        ${SHOW_CARRY_BADGE && t.carry > 0 ? `<span class="badge badge-carry">↻ перенесена ×${t.carry}</span>` : ''}
-        ${overdue ? `<span class="badge badge-due">⏰ дедлайн сегодня</span>` : ''}
-        ${t.notes ? `<span class="badge badge-note">✎ заметка</span>` : ''}
-      </div>
+      ${meta ? `<div class="task-meta">${meta}</div>` : ''}
     </div>
     <button class="iconbtn remove-today" title="Убрать из сегодня (останется в стриме)"
       onclick="event.stopPropagation();removeFromToday(${t.id})">↩</button>
@@ -141,6 +142,10 @@ function renderStreams() {
 function streamTaskRow(t) {
   const s = streamById(t.stream);
   const color = s ? s.color : 'var(--accent)';
+  const meta = [
+    SHOW_CARRY_BADGE && t.carry > 0 ? `<span class="badge badge-carry">↻ ×${t.carry}</span>` : '',
+    t.notes ? '<span class="badge badge-note">✎ заметка</span>' : '',
+  ].join('');
   return `<div class="task ${t.done ? 'done' : ''} ${t.today ? 'in-today' : ''}" style="--stream:${color}" draggable="true"
     ondragstart="dragStart(event,${t.id})" ondragend="dragEnd(event)"
     ondragover="dragOver(event,${t.id})" ondragleave="dragLeave(event)" ondrop="dragDrop(event,${t.id})">
@@ -149,10 +154,7 @@ function streamTaskRow(t) {
     </div>
     <div class="task-body" onclick="openTask(${t.id})">
       <div class="task-title">${esc(t.title)}</div>
-      <div class="task-meta">
-        ${SHOW_CARRY_BADGE && t.carry > 0 ? `<span class="badge badge-carry">↻ ×${t.carry}</span>` : ''}
-        ${t.notes ? '<span class="badge badge-note">✎ заметка</span>' : ''}
-      </div>
+      ${meta ? `<div class="task-meta">${meta}</div>` : ''}
     </div>
     <div class="today-block">
       ${t.done ? '' : (t.today
