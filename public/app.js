@@ -2,6 +2,9 @@
 const state = { streams: [], tasks: [], today: '', aiEnabled: false };
 let view = 'today', openTaskId = null, reviewState = {}, addMode = 'choose';
 let expandedDone = {};
+// Feature flag: показывать бейдж «перенесено ×N».
+// false — функционал скрыт; поставить true, чтобы быстро вернуть обратно.
+const SHOW_CARRY_BADGE = false;
 
 const esc = (s) => (s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const streamById = (id) => state.streams.find((s) => s.id === id);
@@ -74,7 +77,7 @@ function taskRowToday(t) {
     <div class="task-body">
       <div class="task-title">${esc(t.title)}</div>
       <div class="task-meta">
-        ${t.carry > 0 ? `<span class="badge badge-carry">↻ перенесена ×${t.carry}</span>` : ''}
+        ${SHOW_CARRY_BADGE && t.carry > 0 ? `<span class="badge badge-carry">↻ перенесена ×${t.carry}</span>` : ''}
         ${overdue ? `<span class="badge badge-due">⏰ дедлайн сегодня</span>` : ''}
         ${t.notes ? `<span class="badge badge-note">✎ заметка</span>` : ''}
       </div>
@@ -136,7 +139,7 @@ function renderStreams() {
 }
 
 function streamTaskRow(t) {
-  return `<div class="task ${t.done ? 'done' : ''}" draggable="true"
+  return `<div class="task ${t.done ? 'done' : ''} ${t.today ? 'in-today' : ''}" draggable="true"
     ondragstart="dragStart(event,${t.id})" ondragend="dragEnd(event)"
     ondragover="dragOver(event,${t.id})" ondragleave="dragLeave(event)" ondrop="dragDrop(event,${t.id})">
     <div class="check" onclick="toggleDone(${t.id})">
@@ -145,15 +148,14 @@ function streamTaskRow(t) {
     <div class="task-body" onclick="openTask(${t.id})">
       <div class="task-title">${esc(t.title)}</div>
       <div class="task-meta">
-        ${t.carry > 0 ? `<span class="badge badge-carry">↻ ×${t.carry}</span>` : ''}
+        ${SHOW_CARRY_BADGE && t.carry > 0 ? `<span class="badge badge-carry">↻ ×${t.carry}</span>` : ''}
         ${t.notes ? '<span class="badge badge-note">✎ заметка</span>' : ''}
       </div>
     </div>
     <div class="today-block">
-      <span class="badge ${t.today ? 'badge-stream' : 'badge-off'}">${t.today ? 'в плане на сегодня' : 'не в плане'}</span>
       ${t.done ? '' : (t.today
-        ? `<button class="btn btn-sm" onclick="removeFromToday(${t.id})">↩ Убрать из сегодня</button>`
-        : `<button class="btn btn-sm" onclick="toToday(${t.id})">→ В сегодня</button>`)}
+        ? `<button class="btn today-btn" onclick="removeFromToday(${t.id})">↩ Убрать из сегодня</button>`
+        : `<button class="btn today-btn" onclick="toToday(${t.id})">→ В сегодня</button>`)}
     </div>
     <div class="reorder">
       <button onclick="moveTask(${t.id},-1)">▲</button>

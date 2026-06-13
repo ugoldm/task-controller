@@ -44,12 +44,15 @@
   .stream-head .tag{font-size:11px;font-weight:600;color:var(--muted);background:var(--bg);padding:2px 7px;border-radius:6px}
   .stream-count{color:var(--muted);font-weight:500;font-size:13px}
 
-  .task{display:flex;align-items:flex-start;gap:11px;background:var(--surface);border:1px solid var(--line);
+  .task{position:relative;display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line);
         border-radius:var(--radius);padding:12px 14px;margin-top:8px;cursor:pointer;transition:.12s}
   .task:hover{border-color:#d3d6dd;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+  /* индикатор «в плане на сегодня» — акцентная полоса слева (вид «Стримы») */
+  .task.in-today::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;
+        border-radius:var(--radius) 0 0 var(--radius);background:var(--accent)}
   .task.dragging{opacity:.4}
   .task.drag-over{border-color:var(--accent);background:var(--accent-soft)}
-  .check{width:20px;height:20px;border:2px solid #cbd0d8;border-radius:6px;flex-shrink:0;margin-top:1px;
+  .check{width:20px;height:20px;border:2px solid #cbd0d8;border-radius:6px;flex-shrink:0;
          display:flex;align-items:center;justify-content:center;transition:.12s}
   .task.done .check{background:var(--done);border-color:var(--done)}
   .check svg{opacity:0}
@@ -64,7 +67,8 @@
   .badge-due{background:#fde8e8;color:var(--danger)}
   .badge-stream{background:var(--accent-soft);color:var(--accent)}
   .badge-off{background:var(--bg);color:var(--muted)}
-  .today-block{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+  .today-block{display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0;align-self:center}
+  .today-btn{min-width:172px;padding:9px 14px;font-size:14px;text-align:center}
 
   .quick-add{display:flex;gap:8px;margin-top:10px}
   .quick-add input{flex:1;padding:11px 14px;border:1px dashed #cbd0d8;border-radius:var(--radius);background:var(--surface)}
@@ -131,7 +135,7 @@
   .reorder{display:flex;flex-direction:column;gap:2px;flex-shrink:0}
   .reorder button{width:22px;height:17px;border-radius:5px;color:var(--muted);font-size:9px;line-height:1}
   .reorder button:hover{background:var(--bg);color:var(--text)}
-  .remove-today{flex-shrink:0;font-size:15px;align-self:center;color:var(--muted)}
+  .remove-today{flex-shrink:0;width:44px;height:44px;font-size:22px;border-radius:10px;align-self:center;color:var(--muted)}
   .remove-today:hover{background:var(--warn-soft);color:var(--warn)}
 
   .mobilenav{display:none;position:fixed;bottom:0;left:0;right:0;background:var(--surface);
