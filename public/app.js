@@ -155,7 +155,7 @@ function streamTaskRow(t) {
     </div>
     <div class="today-block">
       ${t.done ? '' : (t.today
-        ? `<button class="btn today-btn" onclick="removeFromToday(${t.id})">↩ Убрать из сегодня</button>`
+        ? `<button class="btn today-btn" onclick="removeFromToday(${t.id})">↩ Из сегодня</button>`
         : `<button class="btn today-btn" onclick="toToday(${t.id})">→ В сегодня</button>`)}
     </div>
     <span class="drag-handle" title="Перетащите, чтобы изменить порядок">⠿</span>
