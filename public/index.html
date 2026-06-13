@@ -236,7 +236,7 @@
   <div class="modal-body">
     <div class="field">
       <label>Название</label>
-      <input id="strName" placeholder="Напр.: Стратегия продукта">
+      <input id="strName" placeholder="Напр.: Стратегия продукта" autocomplete="off">
     </div>
     <div class="field" style="margin-bottom:0">
       <label>Цвет</label>
@@ -247,13 +247,13 @@
 </div>
 
 <div class="login" id="login">
-  <div class="login-card">
+  <form class="login-card" onsubmit="doLogin();return false">
     <h2>Task Controller</h2>
     <p>Введите пароль для входа</p>
     <div class="login-err" id="loginErr">Неверный пароль</div>
-    <input type="password" id="loginPass" placeholder="Пароль" onkeydown="if(event.key==='Enter')doLogin()">
-    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Войти</button>
-  </div>
+    <input type="password" id="loginPass" name="password" placeholder="Пароль" autocomplete="current-password">
+    <button type="submit" class="btn btn-primary" style="width:100%">Войти</button>
+  </form>
 </div>
 
 <script src="app.js"></script>

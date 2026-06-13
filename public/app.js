@@ -102,7 +102,7 @@ function renderToday() {
       <div class="stream-head"><span class="cdot" style="background:${s.color}"></span>${esc(s.name)}</div>
       ${list.map(taskRowToday).join('')}
       <div class="quick-add">
-        <input placeholder="+ Задача в «${esc(s.name)}»" onkeydown="if(event.key==='Enter')quickAdd('${s.id}',this)">
+        <input placeholder="+ Задача в «${esc(s.name)}»" autocomplete="off" onkeydown="if(event.key==='Enter')quickAdd('${s.id}',this)">
       </div>
     </div>`;
   });
@@ -131,7 +131,7 @@ function renderStreams() {
         expanded ? '▴ Свернуть выполненные' : `▾ Показать ещё ${done.length - 2} выполненных`}</button>`;
     }
     html += `<div class="quick-add">
-        <input placeholder="+ Задача в «${esc(s.name)}»" onkeydown="if(event.key==='Enter')quickAdd('${s.id}',this)">
+        <input placeholder="+ Задача в «${esc(s.name)}»" autocomplete="off" onkeydown="if(event.key==='Enter')quickAdd('${s.id}',this)">
       </div></div>`;
   });
   html += `<button class="btn add-stream" onclick="openStream()">＋ Новый стрим</button>`;
@@ -249,7 +249,7 @@ function renderDrawer() {
   document.getElementById('drawerBody').innerHTML = `
     <div class="field">
       <label>Формулировка</label>
-      <input value="${esc(t.title)}" onchange="updateField(${t.id},'title',this.value)">
+      <input value="${esc(t.title)}" autocomplete="off" onchange="updateField(${t.id},'title',this.value)">
     </div>
     <div class="field">
       <label>Стрим</label>
@@ -278,7 +278,7 @@ function renderDrawer() {
     </div>
     <div class="field">
       <label>Заметки и контекст</label>
-      <textarea placeholder="Мысли по задаче, ссылки, ход обсуждения…" onchange="updateField(${t.id},'notes',this.value)">${esc(t.notes)}</textarea>
+      <textarea autocomplete="off" placeholder="Мысли по задаче, ссылки, ход обсуждения…" onchange="updateField(${t.id},'notes',this.value)">${esc(t.notes)}</textarea>
     </div>
     <div class="ai-note" style="background:var(--bg);color:var(--muted)">
       <span>ℹ️</span><span>Переносилась ${t.carry} раз(а)</span>
@@ -370,7 +370,7 @@ function renderAdd() {
     ttl.textContent = 'Ввести вручную'; sub.textContent = 'Сами задаёте формулировку и стрим';
     body.innerHTML = `
       <button class="back-link" onclick="addMode='choose';renderAdd()">← Назад</button>
-      <div class="field"><label>Формулировка</label><input id="mTitle" placeholder="Что нужно сделать"></div>
+      <div class="field"><label>Формулировка</label><input id="mTitle" placeholder="Что нужно сделать" autocomplete="off"></div>
       <div class="field" style="margin-bottom:0"><label>Стрим</label>
         <select id="mStream">${state.streams.map((s) => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select>
       </div>`;
@@ -381,7 +381,7 @@ function renderAdd() {
     body.innerHTML = `
       <button class="back-link" onclick="addMode='choose';renderAdd()">← Назад</button>
       <div class="field"><label>Свободный текст</label>
-        <textarea id="recRaw" placeholder="Напр.: До конца недели разобраться со стратегией retention. Ещё нужно посмотреть PRD Артёма по сплит-платежам и не забыть ответить продуктовому совету."></textarea>
+        <textarea id="recRaw" autocomplete="off" placeholder="Напр.: До конца недели разобраться со стратегией retention. Ещё нужно посмотреть PRD Артёма по сплит-платежам и не забыть ответить продуктовому совету."></textarea>
       </div>
       <button class="btn btn-primary btn-sm" onclick="runRecognize(this)">✨ Распознать задачи</button>
       <div id="recResult"></div>`;
@@ -413,7 +413,7 @@ async function runRecognize(btn) {
     ${found.map((t) => `<div class="det-item">
       <input type="checkbox" class="det-cb" checked style="margin-top:11px">
       <div style="flex:1">
-        <input class="det-title" value="${esc(t.title)}" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface);margin-bottom:6px">
+        <input class="det-title" value="${esc(t.title)}" autocomplete="off" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface);margin-bottom:6px">
         <select class="det-stream" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--surface)">
           ${state.streams.map((s) => `<option value="${s.id}" ${s.id === t.streamId ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}
         </select>
