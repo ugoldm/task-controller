@@ -229,6 +229,7 @@ function openTask(id) {
   openTaskId = id; renderDrawer();
   document.getElementById('overlay').classList.add('show');
   document.getElementById('drawer').classList.add('show');
+  lockScroll();
 }
 function renderDrawer() {
   const t = task(openTaskId); if (!t) return;
@@ -463,12 +464,33 @@ async function deleteStream() {
 function showModal(id) {
   document.getElementById('overlay').classList.add('show');
   document.getElementById(id).classList.add('show');
+  lockScroll();
 }
 function closeAll() {
   document.getElementById('overlay').classList.remove('show');
   document.getElementById('drawer').classList.remove('show');
   document.querySelectorAll('.modal').forEach((m) => m.classList.remove('show'));
   openTaskId = null;
+  unlockScroll();
+}
+
+// Блокировка прокрутки фона, пока открыта карточка/модалка (фикс scroll-bleed на мобильных).
+let scrollLocked = false, savedScrollY = 0;
+function lockScroll() {
+  if (scrollLocked) return;
+  scrollLocked = true;
+  savedScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+  document.body.style.position = 'fixed';
+  document.body.style.top = `-${savedScrollY}px`;
+  document.body.style.width = '100%';
+}
+function unlockScroll() {
+  if (!scrollLocked) return;
+  scrollLocked = false;
+  document.body.style.position = '';
+  document.body.style.top = '';
+  document.body.style.width = '';
+  window.scrollTo(0, savedScrollY);
 }
 
 // expose handlers used in inline onclick
